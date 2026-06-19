@@ -7,11 +7,11 @@ A 50-minute hands-on workshop that builds a complete data pipeline: ingest raw c
 ## Quick Start
 
 1. Open the [step-by-step guide](https://sfc-gh-aperezgonzalez.github.io/snowflake-omilia-workshop/)
-2. Open Cortex Code and paste this prompt to set up your notebook:
+2. Open Cortex Code in your Workspace and paste this prompt to create your notebook:
 
 ```
-Create a Snowflake Notebook in OMILIA_WORKSHOP_DAY2 using warehouse WORKSHOP_WH.
-Import the notebook from https://github.com/sfc-gh-aperezgonzalez/snowflake-omilia-workshop/blob/main/notebook/omilia_workshop_day2.ipynb as reference — replicate its structure and SQL cells.
+Create a Snowflake Notebook called "omilia_workshop" in database OMILIA_WORKSHOP_DAY2, using warehouse WORKSHOP_WH.
+Use the notebook at https://github.com/sfc-gh-aperezgonzalez/snowflake-omilia-workshop/blob/main/notebook/omilia_workshop_day2.ipynb as reference and replicate its SQL and markdown cells exactly.
 ```
 
 3. Follow the steps in both the HTML guide and the notebook
