@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>From Omilia Calls to a Training-Ready Dataset | Snowflake Workshop</title>
+    <style>
+        :root {
+            --sf-blue: #29B5E8;
+            --sf-dark: #1B2A4A;
+            --sf-navy: #0F1C3F;
+            --sf-light-blue: #E8F7FC;
+            --sf-green: #4CAF50;
+            --sf-orange: #FF9800;
+            --sf-red: #F44336;
+            --sf-gray: #6B7280;
+            --sf-light-gray: #F8FAFC;
+            --sf-border: #E2E8F0;
+            --sf-code-bg: #1E293B;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: #1E293B;
+            background: #fff;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--sf-navy) 0%, var(--sf-dark) 100%);
+            color: white;
+            padding: 80px 40px;
+            text-align: center;
+        }
+        .hero h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 16px; }
+        .hero .subtitle { font-size: 1.2rem; opacity: 0.9; max-width: 700px; margin: 0 auto 24px; }
+        .hero .badge {
+            display: inline-block;
+            background: var(--sf-blue);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .hero .logo {
+            display: block;
+            margin: 0 auto 24px;
+            height: 40px;
+            opacity: 0.9;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+
+        .pipeline-visual {
+            background: var(--sf-light-gray);
+            border: 1px solid var(--sf-border);
+            border-radius: var(--radius);
+            padding: 32px;
+            margin: 32px 0;
+            text-align: center;
+        }
+        .pipeline-steps {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        .pipeline-step {
+            background: white;
+            border: 2px solid var(--sf-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 100px;
+        }
+        .pipeline-step.active { border-color: var(--sf-blue); background: var(--sf-light-blue); }
+        .pipeline-arrow { color: var(--sf-gray); font-size: 1.2rem; }
+
+        .step-section {
+            margin: 48px 0;
+            border: 1px solid var(--sf-border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .step-header {
+            background: var(--sf-light-gray);
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--sf-border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .step-number {
+            background: var(--sf-blue);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .step-number.bonus { background: var(--sf-orange); }
+        .step-header h2 { font-size: 1.3rem; font-weight: 600; }
+        .step-time { margin-left: auto; color: var(--sf-gray); font-size: 0.8rem; font-weight: 500; }
+        .step-body { padding: 24px; }
+
+        h3 { font-size: 1.1rem; margin: 20px 0 8px; color: var(--sf-dark); }
+
+        .code-block {
+            position: relative;
+            background: var(--sf-code-bg);
+            border-radius: 8px;
+            margin: 16px 0;
+            overflow: hidden;
+        }
+        .code-block pre {
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: #E2E8F0;
+        }
+        .code-block .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #E2E8F0;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.72rem;
+            transition: all 0.2s;
+        }
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); }
+        .code-block .copy-btn.copied { background: var(--sf-green); color: white; }
+
+        .callout {
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-size: 0.9rem;
+        }
+        .callout.info { background: var(--sf-light-blue); border-left: 4px solid var(--sf-blue); }
+        .callout.warning { background: #FFF3E0; border-left: 4px solid var(--sf-orange); }
+        .callout.success { background: #E8F5E9; border-left: 4px solid var(--sf-green); }
+        .callout strong { display: block; margin-bottom: 4px; }
+
+        .expected-output {
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-size: 0.85rem;
+        }
+        .expected-output::before {
+            content: "Expected output";
+            display: block;
+            font-weight: 600;
+            color: var(--sf-green);
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .prereq-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .prereq-item {
+            background: var(--sf-light-gray);
+            border: 1px solid var(--sf-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.85rem;
+        }
+        .prereq-item strong { display: block; color: var(--sf-dark); margin-bottom: 2px; }
+        .prereq-item code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            border: 1px solid var(--sf-border);
+        }
+
+        .wrap-up {
+            background: linear-gradient(135deg, var(--sf-light-blue) 0%, #F0F9FF 100%);
+            border: 1px solid #BAE6FD;
+            border-radius: var(--radius);
+            padding: 32px;
+            margin: 48px 0;
+        }
+        .wrap-up h2 { color: var(--sf-dark); margin-bottom: 16px; }
+        .wrap-up ul { list-style: none; padding: 0; }
+        .wrap-up li { padding: 8px 0; padding-left: 24px; position: relative; }
+        .wrap-up li::before { content: "\2713"; position: absolute; left: 0; color: var(--sf-blue); font-weight: 700; }
+
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: var(--sf-gray);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--sf-border);
+        }
+
+        @media (max-width: 768px) {
+            .hero { padding: 48px 20px; }
+            .hero h1 { font-size: 1.8rem; }
+            .pipeline-steps { flex-direction: column; }
+            .pipeline-arrow { transform: rotate(90deg); }
+            .step-header { flex-wrap: wrap; }
+            .step-time { margin-left: 44px; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <svg class="logo" viewBox="0 0 200 40" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <text x="50" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">&#10052; snowflake</text>
+    </svg>
+    <h1>From Omilia Calls to a Training-Ready Dataset</h1>
+    <p class="subtitle">Build a complete data pipeline in Snowflake: ingest, anonymize, enrich with AI, score with external models, and generate analytics — all in 50 minutes.</p>
+    <span class="badge">Hands-on Workshop &bull; 50 min</span>
+</div>
+
+<div class="container">
+
+    <!-- What You'll Build -->
+    <div class="pipeline-visual">
+        <h3 style="margin-top:0">What You'll Build</h3>
+        <p style="color:var(--sf-gray); font-size:0.9rem; margin-bottom:16px">A complete data flywheel — from raw production data to AI-powered analytics</p>
+        <div class="pipeline-steps">
+            <div class="pipeline-step active">Stage<br><small>CSV + MP3</small></div>
+            <span class="pipeline-arrow">&rarr;</span>
+            <div class="pipeline-step">CALLS_RAW<br><small>Load</small></div>
+            <span class="pipeline-arrow">&rarr;</span>
+            <div class="pipeline-step">CALLS_ANON<br><small>AI_REDACT</small></div>
+            <span class="pipeline-arrow">&rarr;</span>
+            <div class="pipeline-step">CALLS_ENRICHED<br><small>Cortex AI</small></div>
+            <span class="pipeline-arrow">&rarr;</span>
+            <div class="pipeline-step">CALLS_TRAINING_READY<br><small>Model Scores</small></div>
+            <span class="pipeline-arrow">&rarr;</span>
+            <div class="pipeline-step active">Dashboard<br><small>Cortex Code</small></div>
+        </div>
+    </div>
+
+    <!-- Prerequisites -->
+    <h2 style="margin-top:48px; margin-bottom:16px">Prerequisites</h2>
+    <div class="prereq-grid">
+        <div class="prereq-item"><strong>Role</strong><code>WORKSHOP_PARTICIPANT_2026</code></div>
+        <div class="prereq-item"><strong>Warehouse</strong><code>WORKSHOP_WH</code></div>
+        <div class="prereq-item"><strong>Database</strong><code>OMILIA_WORKSHOP_DAY2</code></div>
+        <div class="prereq-item"><strong>Your Schema</strong><code>FIRSTNAME_X</code> (e.g., ALEJANDRO_P)</div>
+        <div class="prereq-item"><strong>Staged Data</strong>Pre-loaded in <code>@SHARED.WORKSHOP_STAGE</code></div>
+        <div class="prereq-item"><strong>Cortex Code</strong>Access to Coco for the final step</div>
+    </div>
+
+    <div class="callout info">
+        <strong>Getting Started</strong>
+        Open Cortex Code and paste this prompt to set up your notebook:
+        <br><br>
+        <em>"Create a Snowflake Notebook in OMILIA_WORKSHOP_DAY2 using warehouse WORKSHOP_WH. Import the notebook from https://github.com/sfc-gh-aperezgonzalez/snowflake-omilia-workshop/blob/main/notebook/omilia_workshop_day2.ipynb as a reference — replicate its structure and SQL cells."</em>
+    </div>
+
+    <!-- STEP 0 -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">0</div>
+            <h2>Setup</h2>
+            <span class="step-time">0-5 min</span>
+        </div>
+        <div class="step-body">
+            <p>Set your schema name and create your isolated workspace. Each participant gets their own schema — your work won't affect anyone else.</p>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>-- Change YOURNAME_X to your assigned schema (e.g., ALEJANDRO_P)
+SET MY_SCHEMA = 'YOURNAME_X';
+
+USE ROLE WORKSHOP_PARTICIPANT_2026;
+USE WAREHOUSE WORKSHOP_WH;
+USE DATABASE OMILIA_WORKSHOP_DAY2;
+
+CREATE SCHEMA IF NOT EXISTS IDENTIFIER($MY_SCHEMA);
+USE SCHEMA IDENTIFIER($MY_SCHEMA);</code></pre>
+            </div>
+
+            <div class="expected-output">Your schema is created. All tables you create will live here.</div>
+        </div>
+    </div>
+
+    <!-- STEP 1 -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">1</div>
+            <h2>Load Raw Data</h2>
+            <span class="step-time">5-12 min</span>
+        </div>
+        <div class="step-body">
+            <p>Load 200 synthetic Omilia-style call records from the shared stage. This represents raw production data flowing into Snowflake.</p>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE TABLE CALLS_RAW (
+    CALL_ID VARCHAR,
+    CUSTOMER_ID VARCHAR,
+    CUSTOMER_NAME VARCHAR,
+    CUSTOMER_EMAIL VARCHAR,
+    QUEUE VARCHAR,
+    LANG VARCHAR,
+    CALL_START_TS TIMESTAMP_NTZ,
+    CALL_END_TS TIMESTAMP_NTZ,
+    DURATION_SEC INTEGER,
+    AGENT_ID VARCHAR,
+    CHANNEL VARCHAR,
+    RAW_TRANSCRIPT TEXT
+);
+
+COPY INTO CALLS_RAW
+FROM @OMILIA_WORKSHOP_DAY2.SHARED.WORKSHOP_STAGE/calls_raw.csv
+FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+               ESCAPE_UNENCLOSED_FIELD = NONE);</code></pre>
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>-- Preview: notice the PII in the transcripts
+SELECT CALL_ID, CUSTOMER_NAME, QUEUE, LANG, DURATION_SEC,
+       LEFT(RAW_TRANSCRIPT, 120) AS transcript_preview
+FROM CALLS_RAW LIMIT 5;</code></pre>
+            </div>
+
+            <div class="expected-output">200 rows loaded. You should see names, emails, and phone numbers in the transcripts.</div>
+        </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">2</div>
+            <h2>Anonymize with AI_REDACT</h2>
+            <span class="step-time">12-20 min</span>
+        </div>
+        <div class="step-body">
+            <p>Remove PII from transcripts before they can be used for training or analytics. <code>AI_REDACT</code> automatically detects and masks names, emails, phone numbers, and addresses.</p>
+
+            <div class="callout warning">
+                <strong>Production Note</strong>
+                In production, this step could be replaced by a call to Omilia's own anonymization model/logic via an external function or UDF. <code>AI_REDACT</code> is used here as a built-in, zero-setup alternative.
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE TABLE CALLS_ANON AS
+SELECT
+    CALL_ID, CUSTOMER_ID, QUEUE, LANG,
+    CALL_START_TS, CALL_END_TS, DURATION_SEC,
+    AGENT_ID, CHANNEL,
+    AI_REDACT(RAW_TRANSCRIPT) AS TRANSCRIPT_ANON
+FROM CALLS_RAW;</code></pre>
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>-- Compare: raw vs anonymized
+SELECT
+    r.CALL_ID,
+    LEFT(r.RAW_TRANSCRIPT, 100) AS original,
+    LEFT(a.TRANSCRIPT_ANON, 100) AS anonymized
+FROM CALLS_RAW r
+JOIN CALLS_ANON a ON r.CALL_ID = a.CALL_ID
+LIMIT 5;</code></pre>
+            </div>
+
+            <div class="expected-output">PII replaced with placeholders like <code>[NAME]</code>, <code>[EMAIL]</code>, <code>[PHONE_NUMBER]</code>.</div>
+        </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">3</div>
+            <h2>Enrich with Cortex AI</h2>
+            <span class="step-time">20-33 min</span>
+        </div>
+        <div class="step-body">
+            <p>Use Snowflake Cortex AI to extract structured insights: summaries, sentiment, issue categories, topics, and escalation flags.</p>
+
+            <div class="callout info">
+                <strong>Timing</strong>
+                This step processes 200 rows &times; 5 AI calls. It takes approximately 2-3 minutes to complete.
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE TABLE CALLS_ENRICHED AS
+SELECT
+    *,
+    TRIM(AI_COMPLETE('snowflake-llama-3.3-70b',
+        'Summarize this call transcript in exactly one sentence. Only output the summary, nothing else.\n\nTranscript: ' || TRANSCRIPT_ANON
+    ), '" \n') AS SUMMARY,
+
+    TRIM(AI_COMPLETE('snowflake-llama-3.3-70b',
+        'Classify the sentiment of this call as exactly one word: positive, negative, or neutral. Only output the single word.\n\nTranscript: ' || TRANSCRIPT_ANON
+    ), '" \n') AS SENTIMENT,
+
+    TRIM(AI_COMPLETE('snowflake-llama-3.3-70b',
+        'Classify the primary issue category. Choose exactly one from: billing, technical_issue, cancellation, product_inquiry, complaint, general_inquiry. Only output the category.\n\nTranscript: ' || TRANSCRIPT_ANON
+    ), '" \n') AS ISSUE_CATEGORY,
+
+    TRIM(AI_COMPLETE('snowflake-llama-3.3-70b',
+        'Extract the main topics from this call as a comma-separated list (max 3 topics). Only output the topics.\n\nTranscript: ' || TRANSCRIPT_ANON
+    ), '" \n') AS TOPICS,
+
+    CASE
+        WHEN LOWER(TRIM(AI_COMPLETE('snowflake-llama-3.3-70b',
+            'Should this call be escalated to a supervisor? Answer only yes or no.\n\nTranscript: ' || TRANSCRIPT_ANON
+        ), '" \n')) LIKE '%yes%' THEN TRUE
+        ELSE FALSE
+    END AS ESCALATION_FLAG
+FROM CALLS_ANON;</code></pre>
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>SELECT CALL_ID, SUMMARY, SENTIMENT, ISSUE_CATEGORY, TOPICS, ESCALATION_FLAG
+FROM CALLS_ENRICHED LIMIT 10;</code></pre>
+            </div>
+
+            <div class="expected-output">Each row now has a summary, sentiment label, issue category, topics, and escalation flag.</div>
+        </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            <h2>External Model Write-Back</h2>
+            <span class="step-time">33-40 min</span>
+        </div>
+        <div class="step-body">
+            <p>Call Omilia's external model (simulated) to score each call. This demonstrates the <strong>write-back pattern</strong> where model outputs flow back into Snowflake.</p>
+
+            <div class="callout info">
+                <strong>What's happening</strong>
+                The <code>OMILIA_MODEL_SCORE</code> function simulates an external ML model hosted on AWS. In production, this would be an external function calling a real endpoint. The results (resolution probability, quality score, escalation recommendation) are written back into Snowflake.
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE TABLE CALLS_TRAINING_READY AS
+SELECT
+    e.*,
+    s.VALUE:resolution_probability::FLOAT AS RESOLUTION_PROBABILITY,
+    s.VALUE:handling_quality_score::FLOAT AS HANDLING_QUALITY_SCORE,
+    s.VALUE:escalation_recommended::BOOLEAN AS MODEL_ESCALATION_RECOMMENDED,
+    s.VALUE:model_version::VARCHAR AS MODEL_VERSION
+FROM CALLS_ENRICHED e,
+     LATERAL (
+         SELECT OMILIA_WORKSHOP_DAY2.SHARED.OMILIA_MODEL_SCORE(
+             e.CALL_ID, e.TRANSCRIPT_ANON
+         ) AS VALUE
+     ) s;</code></pre>
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>SELECT CALL_ID, QUEUE, SENTIMENT, ISSUE_CATEGORY,
+       RESOLUTION_PROBABILITY, HANDLING_QUALITY_SCORE,
+       MODEL_ESCALATION_RECOMMENDED, MODEL_VERSION
+FROM CALLS_TRAINING_READY LIMIT 10;</code></pre>
+            </div>
+
+            <div class="expected-output"><code>CALLS_TRAINING_READY</code> now has all enrichments + external model scores. This is your final training-ready dataset.</div>
+        </div>
+    </div>
+
+    <!-- STEP 5 (Bonus) -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number bonus">5</div>
+            <h2>Audio Transcription</h2>
+            <span class="step-time">Bonus</span>
+        </div>
+        <div class="step-body">
+            <p>Transcribe pre-staged MP3 files directly in Snowflake with <code>AI_TRANSCRIBE</code>. This demonstrates audio-first data flowing into the same governed pipeline.</p>
+
+            <div class="callout warning">
+                <strong>Optional</strong>
+                Skip this step if you're running short on time. It takes ~1-2 minutes to transcribe 3 audio files.
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE TABLE AUDIO_TRANSCRIPTIONS_RAW AS
+SELECT
+    m.CALL_ID,
+    m.AUDIO_FILE_NAME,
+    AI_TRANSCRIBE(
+        TO_FILE('@OMILIA_WORKSHOP_DAY2.SHARED.WORKSHOP_STAGE', m.AUDIO_FILE_NAME),
+        {'timestamp_granularity': 'speaker'}
+    ) AS TRANSCRIPTION_RESULT,
+    CURRENT_TIMESTAMP() AS TRANSCRIBED_AT
+FROM (
+    SELECT 'CALL-001' AS CALL_ID, 'audiofile1.mp3' AS AUDIO_FILE_NAME
+    UNION ALL SELECT 'CALL-002', 'audiofile2.mp3'
+    UNION ALL SELECT 'CALL-003', 'audiofile3.mp3'
+) m;</code></pre>
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>SELECT CALL_ID, AUDIO_FILE_NAME,
+       TRANSCRIPTION_RESULT:audio_duration::FLOAT AS duration_sec,
+       LEFT(TRANSCRIPTION_RESULT:text::VARCHAR, 200) AS transcript_preview
+FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
+            </div>
+
+            <div class="expected-output">Full transcriptions with speaker diarization stored in <code>AUDIO_TRANSCRIPTIONS_RAW</code>.</div>
+        </div>
+    </div>
+
+    <!-- STEP 6 (Bonus) -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number bonus">6</div>
+            <h2>Semantic View & Cortex Agent</h2>
+            <span class="step-time">Bonus</span>
+        </div>
+        <div class="step-body">
+            <p>Create a <strong>Semantic View</strong> for natural-language querying, then a <strong>Cortex Agent</strong> that answers questions about your data using text-to-SQL.</p>
+
+            <h3>6A: Create Semantic View</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE SEMANTIC VIEW CALLS_SEMANTIC_VIEW
+
+  TABLES (
+    calls AS CALLS_TRAINING_READY
+      PRIMARY KEY (CALL_ID)
+      COMMENT = 'Omilia call center training-ready data'
+  )
+
+  DIMENSIONS (
+    calls.queue AS QUEUE
+      COMMENT = 'Call queue: billing, technical_support, cancellations, sales, general',
+    calls.lang AS LANG
+      COMMENT = 'Language of the call: en, el, es',
+    calls.channel AS CHANNEL
+      COMMENT = 'Channel: phone, virtual_assistant, chat',
+    calls.agent_id AS AGENT_ID
+      COMMENT = 'Agent who handled the call',
+    calls.call_start_ts AS CALL_START_TS
+      COMMENT = 'Call start timestamp',
+    calls.sentiment AS SENTIMENT
+      COMMENT = 'Call sentiment: positive, negative, neutral',
+    calls.issue_category AS ISSUE_CATEGORY
+      COMMENT = 'Primary issue category',
+    calls.escalation_flag AS ESCALATION_FLAG
+      COMMENT = 'Whether the call should be escalated (TRUE/FALSE)'
+  )
+
+  METRICS (
+    calls.total_calls AS COUNT(CALL_ID)
+      COMMENT = 'Total number of calls',
+    calls.avg_duration AS AVG(DURATION_SEC)
+      COMMENT = 'Average call duration in seconds',
+    calls.avg_resolution_probability AS AVG(RESOLUTION_PROBABILITY)
+      COMMENT = 'Average model-predicted resolution probability (0-1)',
+    calls.avg_quality_score AS AVG(HANDLING_QUALITY_SCORE)
+      COMMENT = 'Average model-predicted handling quality (0-1)'
+  )
+
+  COMMENT = 'Semantic view over Omilia call training data for natural-language analytics';</code></pre>
+            </div>
+
+            <h3>6B: Create Cortex Agent</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE AGENT CALLS_ANALYST_AGENT
+  COMMENT = 'AI agent for querying Omilia call center data via natural language'
+  FROM SPECIFICATION
+  $$
+  tools:
+    - tool_spec:
+        type: "cortex_analyst_text_to_sql"
+        name: "CallsAnalyst"
+        description: "Answers questions about call center data including volumes, sentiment, quality scores, and escalations"
+
+  tool_resources:
+    CallsAnalyst:
+      semantic_view: "CALLS_SEMANTIC_VIEW"
+  $$;</code></pre>
+            </div>
+
+            <h3>Test Your Agent</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>SELECT SNOWFLAKE.CORTEX.AGENT(
+    'CALLS_ANALYST_AGENT',
+    'What are the top 3 issue categories by call volume, and what is the average quality score for each?'
+) AS agent_response;</code></pre>
+            </div>
+
+            <div class="expected-output">The agent generates and executes SQL against your semantic view, returning a natural-language answer.</div>
+        </div>
+    </div>
+
+    <!-- STEP 7 -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">7</div>
+            <h2>Generate Your Dashboard with Cortex Code</h2>
+            <span class="step-time">40-50 min</span>
+        </div>
+        <div class="step-body">
+            <p>The final step: use Cortex Code to generate a polished analytics dashboard on top of your data. Open Coco and paste this prompt (replace <code>&lt;MY_SCHEMA&gt;</code> with your schema name):</p>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>Build a polished HTML dashboard on top of my Snowflake table
+OMILIA_WORKSHOP_DAY2.&lt;MY_SCHEMA&gt;.CALLS_TRAINING_READY.
+
+Columns: CALL_ID, QUEUE, LANG, DURATION_SEC, CHANNEL,
+TRANSCRIPT_ANON, SUMMARY, SENTIMENT, ISSUE_CATEGORY, TOPICS,
+ESCALATION_FLAG, RESOLUTION_PROBABILITY, HANDLING_QUALITY_SCORE,
+MODEL_ESCALATION_RECOMMENDED.
+
+Build:
+1. KPI cards: total calls, sentiment distribution, % escalated, avg quality score
+2. Filters: queue, language, escalation flag, issue category
+3. A sortable result table with key columns
+4. A detail panel for a selected call (summary, sentiment, topics, scores, transcript)
+5. One chart: calls by queue or average quality by issue category
+
+Constraints:
+- Read from the Snowflake table directly
+- Handle missing optional columns gracefully
+- Simple, workshop-friendly code
+- Polished Snowflake product-demo styling</code></pre>
+            </div>
+
+            <div class="callout success">
+                <strong>What to expect</strong>
+                Cortex Code will generate a complete interactive dashboard. You built this on top of YOUR data, in YOUR schema — not a pre-made demo.
+            </div>
+        </div>
+    </div>
+
+    <!-- Wrap-up -->
+    <div class="wrap-up">
+        <h2>What You Built Today</h2>
+        <p style="margin-bottom:16px; color: var(--sf-gray);">A complete data flywheel in Snowflake, aligned with Omilia's architecture goals:</p>
+        <ul>
+            <li><strong>Snowflake as the governed hub</strong> — all data lives in one place with schema isolation</li>
+            <li><strong>Audio-first data as first-class input</strong> — MP3 files transcribed directly in Snowflake</li>
+            <li><strong>Anonymization pipeline</strong> — PII removed before any analytics or training use</li>
+            <li><strong>Training-ready datasets</strong> — structured, enriched, and model-scored</li>
+            <li><strong>Write-back pattern</strong> — external model outputs flow back into Snowflake tables</li>
+            <li><strong>Semantic View & Agent</strong> — natural-language access to governed data</li>
+            <li><strong>AI-generated internal tools</strong> — dashboards built on top of the same governed data</li>
+        </ul>
+    </div>
+
+</div>
+
+<footer>
+    Omilia Open Doors Day 2 | Powered by Snowflake Cortex AI<br>
+    <small>Workshop materials: <a href="https://github.com/sfc-gh-aperezgonzalez/snowflake-omilia-workshop">github.com/sfc-gh-aperezgonzalez/snowflake-omilia-workshop</a></small>
+</footer>
+
+<script>
+function copyCode(btn) {
+    const code = btn.parentElement.querySelector('code').innerText;
+    navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
+}
+</script>
+
+</body>
+</html>
