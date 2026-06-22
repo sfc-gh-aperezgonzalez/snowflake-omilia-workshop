@@ -259,7 +259,7 @@
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">ANON<br><small>AI_REDACT</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">ENRICHED<br><small>Cortex AI</small></div>
+            <div class="pipeline-step">ENRICHED<br><small>Cortex AI Functions</small></div>
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">TRAINING<br><small>Model Scores</small></div>
             <span class="pipeline-arrow">&rarr;</span>
@@ -407,11 +407,11 @@ LIMIT 5;</code></pre>
     <div class="step-section">
         <div class="step-header">
             <div class="step-number">3</div>
-            <h2>Enrich with Cortex AI</h2>
+            <h2>Enrich with Cortex AI Functions</h2>
             <span class="step-time">20-33 min</span>
         </div>
         <div class="step-body">
-            <p>Use Snowflake Cortex AI to extract structured insights: summaries, sentiment, issue categories, topics, and escalation flags.</p>
+            <p>Use Snowflake Cortex AI Functions to extract structured insights: summaries, sentiment, issue categories, topics, and escalation flags.</p>
 
             <div class="callout info">
                 <strong>Timing</strong>
@@ -645,7 +645,7 @@ FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>Build a polished HTML dashboard on top of my Snowflake table
+                <pre><code>Build a polished Streamlit app in Workspaces on top of my Snowflake table
 OMILIA_WORKSHOP_DAY2.&lt;MY_SCHEMA&gt;.CALLS_TRAINING_READY.
 
 Columns: CALL_ID, QUEUE, LANG, DURATION_SEC, CHANNEL,
@@ -670,6 +670,64 @@ Constraints:
             <div class="callout success">
                 <strong>What to expect</strong>
                 Cortex Code will generate a complete interactive dashboard. You built this on top of YOUR data, in YOUR schema — not a pre-made demo.
+            </div>
+        </div>
+    </div>
+
+    <!-- BONUS HACKATHON -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number" style="background: linear-gradient(135deg, #ff6b35, #f7c948);">&#9733;</div>
+            <h2>Bonus Hackathon: What Can You Build for Your Team?</h2>
+            <span class="step-time">50-65 min</span>
+        </div>
+        <div class="step-body">
+            <p>Open <strong>Cortex Code</strong> and prompt it to build something that solves a real data challenge for your team using what you've learned today.</p>
+
+            <p>You can ask Cortex Code to:</p>
+            <ul>
+                <li>Create a new schema for your hackathon work (<code>YOURNAME_HACKATHON</code>)</li>
+                <li>Generate mock data relevant to your team's domain</li>
+                <li>Extract or generate insights with <strong>Cortex AI Functions</strong></li>
+                <li>Build a conversational agent with <strong>Cortex Agents</strong> to talk to your data</li>
+                <li>Create a forecasting model or anomaly detection on your metrics</li>
+            </ul>
+
+            <div class="callout info">
+                <strong>This is your time to explore the future of data for your team with Snowflake.</strong>
+            </div>
+
+            <p><strong>Sample prompts to adapt:</strong></p>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>-- 1. Domain-specific enrichment
+Using table OMILIA_WORKSHOP_DAY2.&lt;MY_SCHEMA&gt;.CALLS_TRAINING_READY,
+add a new column called &lt;YOUR_INSIGHT&gt; by calling AI_COMPLETE with a prompt
+that extracts &lt;SOMETHING_YOUR_TEAM_CARES_ABOUT&gt; from the TRANSCRIPT_ANON column.
+Show me 10 sample results.</code></pre>
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>-- 2. Conversational agent for your data
+Create a Cortex Agent in schema OMILIA_WORKSHOP_DAY2.&lt;MY_SCHEMA&gt; that can answer
+natural language questions about &lt;YOUR_TEAM'S_DATA_DOMAIN&gt;.
+First create a table with mock data representing &lt;DESCRIBE_YOUR_DATA&gt;,
+then create a Semantic View and an Agent on top of it.</code></pre>
+            </div>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>-- 3. Streamlit dashboard for your KPIs
+Build a Streamlit app in Workspaces that shows &lt;YOUR_TEAM'S_KEY_METRICS&gt;
+using data from OMILIA_WORKSHOP_DAY2.&lt;MY_SCHEMA&gt;.CALLS_TRAINING_READY.
+Focus on &lt;FILTERS_RELEVANT_TO_YOUR_ROLE&gt; and highlight &lt;WHAT_MATTERS_MOST&gt;.</code></pre>
+            </div>
+
+            <div class="callout success">
+                <strong>Show &amp; Tell</strong>
+                After 15 minutes, be ready to come on stage and show what you built in 60 seconds!
             </div>
         </div>
     </div>
