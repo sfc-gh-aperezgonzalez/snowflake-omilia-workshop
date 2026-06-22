@@ -2,7 +2,7 @@
 
 **From Omilia Calls to a Training-Ready Dataset in Snowflake**
 
-A 50-minute hands-on workshop that builds a complete data pipeline: ingest raw call-center data, anonymize PII, enrich with Cortex AI, score with an external model, transcribe audio, and generate an analytics dashboard.
+A hands-on workshop that builds a complete data pipeline: ingest raw call-center data, anonymize PII, enrich with Cortex AI, score with an external model, transcribe audio, and generate an analytics dashboard.
 
 ## Quick Start
 
