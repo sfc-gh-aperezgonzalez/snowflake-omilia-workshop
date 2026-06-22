@@ -611,31 +611,39 @@ FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                 <pre><code>CREATE OR REPLACE AGENT CALLS_ANALYST_AGENT
-  COMMENT = 'AI agent for querying Omilia call center data via natural language'
+  COMMENT = 'Omilia Call Center Analyst — ask questions about call volumes, sentiment, quality scores, and escalation patterns'
   FROM SPECIFICATION
   $$
+  instructions:
+    response: |
+      You are the Omilia Call Center Analyst. Answer questions about call center operations clearly and concisely.
+      When showing data with categories or comparisons, always include a chart visualization.
+      Use bar charts for category comparisons and line charts for time trends.
+      Format numbers with appropriate precision (percentages to 1 decimal, scores to 2 decimals).
+
   tools:
     - tool_spec:
         type: "cortex_analyst_text_to_sql"
         name: "CallsAnalyst"
-        description: "Answers questions about call center data including volumes, sentiment, quality scores, and escalations"
+        description: "Queries Omilia call center data including call volumes by queue, sentiment distribution, average handling quality scores, escalation rates, and issue category breakdowns."
 
   tool_resources:
     CallsAnalyst:
       semantic_view: "CALLS_SEMANTIC_VIEW"
+      execution_environment:
+        type: "warehouse"
+        warehouse: "WORKSHOP_WH"
   $$;</code></pre>
             </div>
 
             <h3>Test Your Agent</h3>
+            <p>Open <strong>Snowflake CoWork</strong> (top-right corner of Snowsight) and select your <code>CALLS_ANALYST_AGENT</code>. Try asking:</p>
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>SELECT SNOWFLAKE.CORTEX.AGENT(
-    'CALLS_ANALYST_AGENT',
-    'What are the top 3 issue categories by call volume, and what is the average quality score for each?'
-) AS agent_response;</code></pre>
+                <pre><code>What are the top 3 issue categories by call volume, and what is the average quality score for each?</code></pre>
             </div>
 
-            <div class="expected-output">The agent generates and executes SQL against your semantic view, returning a natural-language answer.</div>
+            <div class="expected-output">The agent generates and executes SQL against your semantic view, returning a natural-language answer with charts.</div>
         </div>
     </div>
 
