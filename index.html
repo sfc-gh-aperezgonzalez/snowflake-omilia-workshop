@@ -411,11 +411,11 @@ LIMIT 5;</code></pre>
             <span class="step-time">20-33 min</span>
         </div>
         <div class="step-body">
-            <p>Use Snowflake Cortex AI Functions to extract structured insights: summaries, sentiment, issue categories, topics, and escalation flags.</p>
+            <p>Use multiple Snowflake Cortex AI Functions to extract structured insights — showcasing <strong>AI_COMPLETE</strong>, <strong>AI_SENTIMENT</strong>, <strong>AI_CLASSIFY</strong>, <strong>AI_FILTER</strong>, and <strong>AI_TRANSLATE</strong>.</p>
 
             <div class="callout info">
                 <strong>Timing</strong>
-                This step processes 200 rows &times; 5 AI calls. It takes approximately 2-3 minutes to complete.
+                This step processes 200 rows &times; multiple AI calls. It takes approximately 3-4 minutes to complete.
             </div>
 
             <div class="code-block">
@@ -423,38 +423,44 @@ LIMIT 5;</code></pre>
                 <pre><code>CREATE OR REPLACE TABLE CALLS_ENRICHED AS
 SELECT
     *,
+    -- AI_COMPLETE: free-form LLM call for summarization
     TRIM(AI_COMPLETE('llama3.3-70b',
         'Summarize this call transcript in exactly one sentence. Only output the summary, nothing else.\n\nTranscript: ' || TRANSCRIPT_ANON
     ), '" \n') AS SUMMARY,
 
-    TRIM(AI_COMPLETE('llama3.3-70b',
-        'Classify the sentiment of this call as exactly one word: positive, negative, or neutral. Only output the single word.\n\nTranscript: ' || TRANSCRIPT_ANON
-    ), '" \n') AS SENTIMENT,
+    -- AI_SENTIMENT: purpose-built sentiment extraction
+    AI_SENTIMENT(TRANSCRIPT_ANON):categories[0]:sentiment::VARCHAR AS SENTIMENT,
 
-    TRIM(AI_COMPLETE('llama3.3-70b',
-        'Classify the primary issue category. Choose exactly one from: billing, technical_issue, cancellation, product_inquiry, complaint, general_inquiry. Only output the category.\n\nTranscript: ' || TRANSCRIPT_ANON
-    ), '" \n') AS ISSUE_CATEGORY,
+    -- AI_CLASSIFY: multi-class classification with predefined categories
+    AI_CLASSIFY(TRANSCRIPT_ANON::VARCHAR,
+        ['billing', 'technical_issue', 'cancellation', 'product_inquiry', 'complaint', 'general_inquiry']
+    ):labels[0]::VARCHAR AS ISSUE_CATEGORY,
 
+    -- AI_COMPLETE: topic extraction (flexible LLM task)
     TRIM(AI_COMPLETE('llama3.3-70b',
         'Extract the main topics from this call as a comma-separated list (max 3 topics). Only output the topics.\n\nTranscript: ' || TRANSCRIPT_ANON
     ), '" \n') AS TOPICS,
 
-    CASE
-        WHEN LOWER(TRIM(AI_COMPLETE('llama3.3-70b',
-            'Should this call be escalated to a supervisor? Answer only yes or no.\n\nTranscript: ' || TRANSCRIPT_ANON
-        ), '" \n')) LIKE '%yes%' THEN TRUE
-        ELSE FALSE
-    END AS ESCALATION_FLAG
+    -- AI_FILTER: boolean classification via natural language predicate
+    AI_FILTER(PROMPT('The customer in this call is requesting escalation to a supervisor or manager: {0}', TRANSCRIPT_ANON)) AS ESCALATION_FLAG,
+
+    -- AI_TRANSLATE: translate summary to Greek for Omilia's Athens team
+    AI_TRANSLATE(
+        TRIM(AI_COMPLETE('llama3.3-70b',
+            'Summarize this call in one sentence. Only output the summary.\n\nTranscript: ' || TRANSCRIPT_ANON
+        ), '" \n'),
+        '', 'el'
+    ) AS SUMMARY_EL
 FROM CALLS_ANON;</code></pre>
             </div>
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>SELECT CALL_ID, SUMMARY, SENTIMENT, ISSUE_CATEGORY, TOPICS, ESCALATION_FLAG
+                <pre><code>SELECT CALL_ID, SUMMARY, SENTIMENT, ISSUE_CATEGORY, TOPICS, ESCALATION_FLAG, SUMMARY_EL
 FROM CALLS_ENRICHED LIMIT 10;</code></pre>
             </div>
 
-            <div class="expected-output">Each row now has a summary, sentiment label, issue category, topics, and escalation flag.</div>
+            <div class="expected-output">Each row now has a summary, sentiment label, issue category, topics, escalation flag, and a Greek translation of the summary.</div>
         </div>
     </div>
 
