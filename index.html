@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>From Omilia Calls to a Training-Ready Dataset | Snowflake Workshop</title>
+    <title>From Omilia Calls to a Training-Ready ML Pipeline | Snowflake Workshop</title>
     <style>
         :root {
             --sf-blue: #29B5E8;
@@ -241,8 +241,8 @@
 
 <div class="hero">
     <img class="logo" src="assets/snowflake-logo-white.svg" alt="Snowflake">
-    <h1>From Omilia Calls to a Training-Ready Dataset</h1>
-    <p class="subtitle">Build a complete data pipeline in Snowflake: ingest, anonymize, enrich with AI, score with external models, and generate analytics.</p>
+    <h1>From Omilia Calls to a Training-Ready ML Pipeline</h1>
+    <p class="subtitle">Build a governed ML pipeline in Snowflake: ingest, anonymize, tag, annotate, snapshot datasets, train models with lineage, and query with a Cortex Agent.</p>
     <span class="badge">Hands-on Workshop</span>
 </div>
 
@@ -251,19 +251,21 @@
     <!-- What You'll Build -->
     <div class="pipeline-visual">
         <h3 style="margin-top:0">What You'll Build</h3>
-        <p style="color:var(--sf-gray); font-size:0.9rem; margin-bottom:16px">A complete data flywheel — from raw production data to AI-powered analytics</p>
+        <p style="color:var(--sf-gray); font-size:0.9rem; margin-bottom:16px">A governed ML pipeline — from raw data to a registered model with full lineage</p>
         <div class="pipeline-steps">
-            <div class="pipeline-step active">Stage<br><small>CSV + MP3</small></div>
+            <div class="pipeline-step active">Stage<br><small>CSV</small></div>
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">RAW<br><small>Load</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">ANON<br><small>AI_REDACT</small></div>
+            <div class="pipeline-step">ANON<br><small>AI_REDACT + Tags</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">ENRICHED<br><small>Cortex AI Functions</small></div>
+            <div class="pipeline-step">ANNOTATED<br><small>Write-back</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">TRAINING<br><small>Model Scores</small></div>
+            <div class="pipeline-step">DATASET<br><small>Immutable v1</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step active">Dashboard<br><small>Cortex Code</small></div>
+            <div class="pipeline-step">MODEL<br><small>Registry</small></div>
+            <span class="pipeline-arrow">&rarr;</span>
+            <div class="pipeline-step active">AGENT<br><small>CoWork</small></div>
         </div>
     </div>
 

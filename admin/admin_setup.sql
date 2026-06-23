@@ -143,3 +143,46 @@ GRANT ALL ON FUTURE SCHEMAS IN DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE WORKSHOP_PA
 -- Assign the role to each participant user:
 -- GRANT ROLE WORKSHOP_PARTICIPANT_2026 TO USER <username>;
 -- =============================================================================
+
+
+-- =============================================================================
+-- ADDITIONAL GRANTS FOR DAY 2 ML PIPELINE
+-- =============================================================================
+-- Run this section AFTER the initial setup above (can be run separately).
+-- Adds: governance tags, ML dataset creation, model registry, Python UDFs.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 8. Governance Tags (pre-created in SHARED, participants reference them)
+-- -----------------------------------------------------------------------------
+CREATE TAG IF NOT EXISTS OMILIA_WORKSHOP_DAY2.SHARED.DATA_DOMAIN
+  ALLOWED_VALUES 'call_center', 'customer', 'agent', 'model_output'
+  COMMENT = 'Business domain classification for data discoverability';
+
+CREATE TAG IF NOT EXISTS OMILIA_WORKSHOP_DAY2.SHARED.SENSITIVITY
+  ALLOWED_VALUES 'public', 'internal', 'confidential', 'restricted'
+  COMMENT = 'Data sensitivity level for policy enforcement';
+
+-- Participants can apply these specific tags to their own tables
+GRANT APPLY ON TAG OMILIA_WORKSHOP_DAY2.SHARED.DATA_DOMAIN TO ROLE WORKSHOP_PARTICIPANT_2026;
+GRANT APPLY ON TAG OMILIA_WORKSHOP_DAY2.SHARED.SENSITIVITY TO ROLE WORKSHOP_PARTICIPANT_2026;
+
+-- -----------------------------------------------------------------------------
+-- 9. ML Dataset Creation
+-- -----------------------------------------------------------------------------
+GRANT CREATE DATASET ON FUTURE SCHEMAS IN DATABASE OMILIA_WORKSHOP_DAY2
+  TO ROLE WORKSHOP_PARTICIPANT_2026;
+
+-- -----------------------------------------------------------------------------
+-- 10. Model Registry
+-- -----------------------------------------------------------------------------
+GRANT CREATE MODEL ON FUTURE SCHEMAS IN DATABASE OMILIA_WORKSHOP_DAY2
+  TO ROLE WORKSHOP_PARTICIPANT_2026;
+
+-- -----------------------------------------------------------------------------
+-- 11. Python UDFs (needed for Snowpark ML model training internals)
+-- -----------------------------------------------------------------------------
+GRANT CREATE FUNCTION ON FUTURE SCHEMAS IN DATABASE OMILIA_WORKSHOP_DAY2
+  TO ROLE WORKSHOP_PARTICIPANT_2026;
+
+-- =============================================================================
