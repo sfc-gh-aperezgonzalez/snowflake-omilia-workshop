@@ -259,11 +259,13 @@
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">ANON<br><small>AI_REDACT + Tags</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">ANNOTATED<br><small>Write-back</small></div>
+            <div class="pipeline-step">ANNOTATED<br><small>AI_CLASSIFY</small></div>
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">DATASET<br><small>Immutable v1</small></div>
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">MODEL<br><small>Registry</small></div>
+            <span class="pipeline-arrow">&rarr;</span>
+            <div class="pipeline-step">INFERENCE<br><small>Predictions</small></div>
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step active">AGENT<br><small>CoWork</small></div>
         </div>
@@ -409,60 +411,59 @@ LIMIT 5;</code></pre>
     <div class="step-section">
         <div class="step-header">
             <div class="step-number">3</div>
-            <h2>Enrich with Cortex AI Functions</h2>
-            <span class="step-time">20-33 min</span>
+            <h2>Annotation Write-Back</h2>
+            <span class="step-time">20-30 min</span>
         </div>
         <div class="step-body">
-            <p>Use multiple Snowflake Cortex AI Functions to extract structured insights — showcasing <strong>AI_COMPLETE</strong>, <strong>AI_SENTIMENT</strong>, <strong>AI_CLASSIFY</strong>, <strong>AI_FILTER</strong>, and <strong>AI_TRANSLATE</strong>.</p>
+            <p>Simulate what happens when a human annotation team labels call intents. In production, an external tool (Label Studio, Prodigy, or Omilia's internal UI) writes labels back into Snowflake via API. Here we use <code>AI_CLASSIFY</code> to produce semantically meaningful labels — exactly what a human annotator would assign based on transcript content.</p>
 
             <div class="callout info">
-                <strong>Timing</strong>
-                This step processes 200 rows &times; multiple AI calls. It takes approximately 3-4 minutes to complete.
+                <strong>Why AI_CLASSIFY?</strong>
+                Using AI to simulate annotations produces content-based labels (not random ones). When we train a model on these in Step 5, the training is realistic — the model learns actual patterns between call content and intent.
             </div>
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>CREATE OR REPLACE TABLE CALLS_ENRICHED AS
+                <pre><code>-- Simulate human annotations using AI_CLASSIFY
+CREATE OR REPLACE TABLE HUMAN_ANNOTATIONS AS
 SELECT
-    *,
-    -- AI_COMPLETE: free-form LLM call for summarization
-    TRIM(AI_COMPLETE('llama3.3-70b',
-        'Summarize this call transcript in exactly one sentence. Only output the summary, nothing else.\n\nTranscript: ' || TRANSCRIPT_ANON
-    ), '" \n') AS SUMMARY,
+    CALL_ID,
+    AI_CLASSIFY(
+        TRANSCRIPT_ANON::VARCHAR,
+        ['billing_dispute', 'service_outage', 'plan_upgrade', 'device_issue', 'account_closure', 'general_inquiry']
+    ):labels[0]::VARCHAR AS INTENT_LABEL,
+    'annotator_' || MOD(ABS(HASH(CALL_ID)), 5) AS ANNOTATOR_ID,
+    DATEADD(hour, -MOD(ABS(HASH(CALL_ID)), 48), CURRENT_TIMESTAMP()::TIMESTAMP_NTZ) AS ANNOTATED_AT,
+    ROUND(0.85 + (MOD(ABS(HASH(CALL_ID)), 15) / 100.0), 2) AS CONFIDENCE
+FROM CALLS_ANON
+WHERE MOD(ABS(HASH(CALL_ID)), 3) = 0;
 
-    -- AI_SENTIMENT: purpose-built sentiment extraction
-    AI_SENTIMENT(TRANSCRIPT_ANON):categories[0]:sentiment::VARCHAR AS SENTIMENT,
-
-    -- AI_CLASSIFY: multi-class classification with predefined categories
-    AI_CLASSIFY(TRANSCRIPT_ANON::VARCHAR,
-        ['billing', 'technical_issue', 'cancellation', 'product_inquiry', 'complaint', 'general_inquiry']
-    ):labels[0]::VARCHAR AS ISSUE_CATEGORY,
-
-    -- AI_COMPLETE: topic extraction (flexible LLM task)
-    TRIM(AI_COMPLETE('llama3.3-70b',
-        'Extract the main topics from this call as a comma-separated list (max 3 topics). Only output the topics.\n\nTranscript: ' || TRANSCRIPT_ANON
-    ), '" \n') AS TOPICS,
-
-    -- AI_FILTER: boolean classification via natural language predicate
-    AI_FILTER(PROMPT('The customer in this call is requesting escalation to a supervisor or manager: {0}', TRANSCRIPT_ANON)) AS ESCALATION_FLAG,
-
-    -- AI_TRANSLATE: translate summary to Greek for Omilia's Athens team
-    AI_TRANSLATE(
-        TRIM(AI_COMPLETE('llama3.3-70b',
-            'Summarize this call in one sentence. Only output the summary.\n\nTranscript: ' || TRANSCRIPT_ANON
-        ), '" \n'),
-        '', 'el'
-    ) AS SUMMARY_EL
-FROM CALLS_ANON;</code></pre>
+SELECT INTENT_LABEL, COUNT(*) AS cnt
+FROM HUMAN_ANNOTATIONS
+GROUP BY INTENT_LABEL ORDER BY cnt DESC;</code></pre>
             </div>
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>SELECT CALL_ID, SUMMARY, SENTIMENT, ISSUE_CATEGORY, TOPICS, ESCALATION_FLAG, SUMMARY_EL
-FROM CALLS_ENRICHED LIMIT 10;</code></pre>
+                <pre><code>-- Merge: combine anonymized data with annotation labels
+CREATE OR REPLACE TABLE CALLS_TRAINING_READY AS
+SELECT
+    a.*,
+    h.INTENT_LABEL,
+    h.ANNOTATOR_ID,
+    h.ANNOTATED_AT,
+    h.CONFIDENCE AS ANNOTATION_CONFIDENCE,
+    CASE WHEN h.CALL_ID IS NOT NULL THEN 'human' ELSE 'model' END AS LABEL_SOURCE
+FROM CALLS_ANON a
+LEFT JOIN HUMAN_ANNOTATIONS h ON a.CALL_ID = h.CALL_ID;
+
+-- Verify: count by label source
+SELECT LABEL_SOURCE, COUNT(*) AS cnt
+FROM CALLS_TRAINING_READY
+GROUP BY LABEL_SOURCE;</code></pre>
             </div>
 
-            <div class="expected-output">Each row now has a summary, sentiment label, issue category, topics, escalation flag, and a Greek translation of the summary.</div>
+            <div class="expected-output">~65 rows with <code>LABEL_SOURCE = 'human'</code> (AI_CLASSIFY-based intent labels), rest with <code>'model'</code>.</div>
         </div>
     </div>
 
@@ -470,102 +471,162 @@ FROM CALLS_ENRICHED LIMIT 10;</code></pre>
     <div class="step-section">
         <div class="step-header">
             <div class="step-number">4</div>
-            <h2>External Model Write-Back</h2>
-            <span class="step-time">33-40 min</span>
+            <h2>Create Immutable ML Dataset</h2>
+            <span class="step-time">30-35 min</span>
         </div>
         <div class="step-body">
-            <p>Call Omilia's external model (simulated) to score each call. This demonstrates the <strong>write-back pattern</strong> where model outputs flow back into Snowflake.</p>
+            <p>Freeze the training-ready data into an <strong>immutable, versioned ML Dataset</strong> — a "recipe" that guarantees reproducibility. If you retrain 6 months from now, you can prove exactly which data was used.</p>
 
             <div class="callout info">
-                <strong>What's happening</strong>
-                The <code>OMILIA_MODEL_SCORE</code> function simulates an external ML model hosted on AWS. In production, this would be an external function calling a real endpoint. The results (resolution probability, quality score, escalation recommendation) are written back into Snowflake.
+                <strong>Why Datasets?</strong>
+                Tables change. Datasets don't. Each version is a frozen snapshot with its own lineage. Your team can maintain multiple recipes: <code>v1</code> = all annotated calls, <code>v2</code> = Greek-only calls, <code>v3</code> = billing queue only.
             </div>
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>CREATE OR REPLACE TABLE CALLS_TRAINING_READY AS
-SELECT
-    e.*,
-    s.VALUE:resolution_probability::FLOAT AS RESOLUTION_PROBABILITY,
-    s.VALUE:handling_quality_score::FLOAT AS HANDLING_QUALITY_SCORE,
-    s.VALUE:escalation_recommended::BOOLEAN AS MODEL_ESCALATION_RECOMMENDED,
-    s.VALUE:model_version::VARCHAR AS MODEL_VERSION
-FROM CALLS_ENRICHED e,
-     LATERAL (
-         SELECT OMILIA_WORKSHOP_DAY2.SHARED.OMILIA_MODEL_SCORE(
-             e.CALL_ID, e.TRANSCRIPT_ANON
-         ) AS VALUE
-     ) s;</code></pre>
+                <pre><code>CREATE DATASET IF NOT EXISTS CALLS_TRAINING_DATASET;
+
+ALTER DATASET CALLS_TRAINING_DATASET ADD VERSION 'v1'
+  FROM (SELECT * FROM CALLS_TRAINING_READY)
+  COMMENT = 'All annotated calls - initial training recipe';
+
+-- Verify: list all versions
+SHOW VERSIONS IN DATASET CALLS_TRAINING_DATASET;</code></pre>
             </div>
 
-            <div class="code-block">
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>SELECT CALL_ID, QUEUE, SENTIMENT, ISSUE_CATEGORY,
-       RESOLUTION_PROBABILITY, HANDLING_QUALITY_SCORE,
-       MODEL_ESCALATION_RECOMMENDED, MODEL_VERSION
-FROM CALLS_TRAINING_READY LIMIT 10;</code></pre>
-            </div>
-
-            <div class="expected-output"><code>CALLS_TRAINING_READY</code> now has all enrichments + external model scores. This is your final training-ready dataset.</div>
+            <div class="expected-output">Dataset <code>CALLS_TRAINING_DATASET</code> with version <code>v1</code> containing your annotated training data.</div>
         </div>
     </div>
 
-    <!-- STEP 5 (Bonus) -->
+    <!-- STEP 5 -->
     <div class="step-section">
         <div class="step-header">
-            <div class="step-number bonus">5</div>
-            <h2>Audio Transcription</h2>
-            <span class="step-time">Bonus</span>
+            <div class="step-number">5</div>
+            <h2>Train &amp; Register a Model</h2>
+            <span class="step-time">35-45 min</span>
         </div>
         <div class="step-body">
-            <p>Transcribe pre-staged MP3 files directly in Snowflake with <code>AI_TRANSCRIBE</code>. This demonstrates audio-first data flowing into the same governed pipeline.</p>
+            <p>Train an intent classifier on the annotated data using <strong>Snowpark ML</strong>, then register it in the <strong>Model Registry</strong>. This completes the lineage chain: Source Table &rarr; Dataset &rarr; Model.</p>
 
-            <div class="callout warning">
-                <strong>Optional</strong>
-                Skip this step if you're running short on time. It takes ~1-2 minutes to transcribe 3 audio files.
+            <div class="callout info">
+                <strong>Production Note</strong>
+                This is a minimal example to show the pattern. In production you'd use the full MLOps stack: Feature Store, Experiments, Model Explainability (SHAP), and ML Observability for drift detection.
             </div>
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>CREATE OR REPLACE TABLE AUDIO_TRANSCRIPTIONS_RAW AS
-SELECT
-    m.CALL_ID,
-    m.AUDIO_FILE_NAME,
-    AI_TRANSCRIBE(
-        TO_FILE('@OMILIA_WORKSHOP_DAY2.SHARED.WORKSHOP_STAGE', m.AUDIO_FILE_NAME),
-        {'timestamp_granularity': 'speaker'}
-    ) AS TRANSCRIPTION_RESULT,
-    CURRENT_TIMESTAMP() AS TRANSCRIBED_AT
-FROM (
-    SELECT 'CALL-001' AS CALL_ID, 'audiofile1.mp3' AS AUDIO_FILE_NAME
-    UNION ALL SELECT 'CALL-002', 'audiofile2.mp3'
-    UNION ALL SELECT 'CALL-003', 'audiofile3.mp3'
-) m;</code></pre>
+                <pre><code># Switch to Python cell in your notebook
+from snowflake.snowpark.context import get_active_session
+from snowflake.ml.modeling.ensemble import RandomForestClassifier
+from snowflake.ml.registry import Registry
+from snowflake.ml.dataset import load_dataset
+
+session = get_active_session()
+
+# Load from the immutable dataset
+ds = load_dataset(session, "CALLS_TRAINING_DATASET", "v1")
+train_df = ds.read.to_snowpark_dataframe()
+
+# Only use human-annotated rows
+labeled_df = train_df.filter(train_df["LABEL_SOURCE"] == "human")
+print(f"Training on {labeled_df.count()} human-annotated rows")
+
+# Train intent classifier
+model = RandomForestClassifier(
+    n_estimators=50,
+    input_cols=["DURATION_SEC"],
+    label_cols=["INTENT_LABEL"],
+)
+model.fit(labeled_df)
+
+# Register in Model Registry
+reg = Registry(session=session)
+mv = reg.log_model(
+    model,
+    model_name="INTENT_CLASSIFIER",
+    version_name="v1",
+    sample_input_data=labeled_df.select("DURATION_SEC").limit(10),
+    comment="Intent classifier trained on human-annotated call data"
+)
+print(f"Model registered: {mv.model_name} version {mv.version_name}")</code></pre>
             </div>
 
-            <div class="code-block">
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>SELECT CALL_ID, AUDIO_FILE_NAME,
-       TRANSCRIPTION_RESULT:audio_duration::FLOAT AS duration_sec,
-       LEFT(TRANSCRIPTION_RESULT:text::VARCHAR, 200) AS transcript_preview
-FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
-            </div>
-
-            <div class="expected-output">Full transcriptions with speaker diarization stored in <code>AUDIO_TRANSCRIPTIONS_RAW</code>.</div>
+            <div class="expected-output">Model <code>INTENT_CLASSIFIER</code> version <code>v1</code> registered in the Model Registry.</div>
         </div>
     </div>
 
-    <!-- STEP 6 (Bonus) -->
+    <!-- STEP 6 -->
     <div class="step-section">
         <div class="step-header">
-            <div class="step-number bonus">6</div>
-            <h2>Semantic View & Cortex Agent</h2>
+            <div class="step-number">6</div>
+            <h2>Batch Inference &mdash; Prove It Works</h2>
+            <span class="step-time">45-50 min</span>
+        </div>
+        <div class="step-body">
+            <p>Run the registered model on all calls to generate predictions. This proves the end-to-end pipeline delivers real value — you can compare predicted vs actual labels and measure accuracy.</p>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code>CREATE OR REPLACE TABLE CALLS_PREDICTIONS AS
+SELECT
+    CALL_ID, QUEUE, LANG, DURATION_SEC, CHANNEL, INTENT_LABEL, LABEL_SOURCE,
+    INTENT_CLASSIFIER!PREDICT(DURATION_SEC):OUTPUT_INTENT_LABEL::VARCHAR AS PREDICTED_INTENT_LABEL
+FROM CALLS_TRAINING_READY;
+
+-- Compare predictions vs actual labels
+SELECT
+    CALL_ID, QUEUE, DURATION_SEC,
+    INTENT_LABEL AS ACTUAL_LABEL,
+    PREDICTED_INTENT_LABEL,
+    CASE WHEN INTENT_LABEL = PREDICTED_INTENT_LABEL THEN 'correct' ELSE 'mismatch' END AS MATCH,
+    LABEL_SOURCE
+FROM CALLS_PREDICTIONS
+WHERE LABEL_SOURCE = 'human'
+LIMIT 15;</code></pre>
+            </div>
+
+            <div class="expected-output"><code>CALLS_PREDICTIONS</code> table with predicted intent labels. Compare actual vs predicted to see model accuracy.</div>
+        </div>
+    </div>
+
+    <!-- STEP 7 -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">7</div>
+            <h2>View ML Lineage</h2>
+            <span class="step-time">50-55 min</span>
+        </div>
+        <div class="step-body">
+            <p>Auditors ask: "Which data trained this model? Was PII removed? Who annotated the labels?" Snowflake ML Lineage in <strong>Horizon Catalog</strong> answers instantly.</p>
+
+            <div class="callout success">
+                <strong>The full lineage chain:</strong>
+                <code>CALLS_TRAINING_READY</code> &rarr; <code>CALLS_TRAINING_DATASET v1</code> &rarr; <code>INTENT_CLASSIFIER v1</code> &rarr; <code>CALLS_PREDICTIONS</code>
+            </div>
+
+            <h3>Try it now:</h3>
+            <ol>
+                <li>In Snowsight, go to <strong>Catalog &rarr; Database Explorer</strong></li>
+                <li>Navigate to your schema &rarr; <strong>Models</strong> &rarr; <code>INTENT_CLASSIFIER</code></li>
+                <li>Click on version <strong>v1</strong> &rarr; select the <strong>Lineage</strong> tab</li>
+                <li>You should see the full graph: source table &rarr; dataset &rarr; model</li>
+            </ol>
+
+            <div class="expected-output">Full lineage graph visible in Horizon Catalog — every model traceable back to its exact training data with full provenance.</div>
+        </div>
+    </div>
+
+    <!-- STEP 8 (Bonus) -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number bonus">8</div>
+            <h2>Semantic View &amp; Cortex Agent</h2>
             <span class="step-time">Bonus</span>
         </div>
         <div class="step-body">
             <p>Create a <strong>Semantic View</strong> for natural-language querying, then a <strong>Cortex Agent</strong> that answers questions about your data using text-to-SQL.</p>
 
-            <h3>6A: Create Semantic View</h3>
+            <h3>8A: Create Semantic View</h3>
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                 <pre><code>CREATE OR REPLACE SEMANTIC VIEW CALLS_SEMANTIC_VIEW
@@ -587,12 +648,10 @@ FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
       COMMENT = 'Agent who handled the call',
     calls.call_start_ts AS CALL_START_TS
       COMMENT = 'Call start timestamp',
-    calls.sentiment AS SENTIMENT
-      COMMENT = 'Call sentiment: positive, negative, neutral',
-    calls.issue_category AS ISSUE_CATEGORY
-      COMMENT = 'Primary issue category',
-    calls.escalation_flag AS ESCALATION_FLAG
-      COMMENT = 'Whether the call should be escalated (TRUE/FALSE)'
+    calls.intent_label AS INTENT_LABEL
+      COMMENT = 'Annotated intent: billing_dispute, service_outage, plan_upgrade, device_issue, account_closure, general_inquiry',
+    calls.label_source AS LABEL_SOURCE
+      COMMENT = 'Who provided the label: human or model'
   )
 
   METRICS (
@@ -600,20 +659,18 @@ FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
       COMMENT = 'Total number of calls',
     calls.avg_duration AS AVG(DURATION_SEC)
       COMMENT = 'Average call duration in seconds',
-    calls.avg_resolution_probability AS AVG(RESOLUTION_PROBABILITY)
-      COMMENT = 'Average model-predicted resolution probability (0-1)',
-    calls.avg_quality_score AS AVG(HANDLING_QUALITY_SCORE)
-      COMMENT = 'Average model-predicted handling quality (0-1)'
+    calls.human_annotated_pct AS AVG(CASE WHEN LABEL_SOURCE = 'human' THEN 1.0 ELSE 0.0 END)
+      COMMENT = 'Percentage of calls with human annotations (0-1)'
   )
 
-  COMMENT = 'Semantic view over Omilia call training data for natural-language analytics';</code></pre>
+  COMMENT = 'Semantic view over Omilia annotated call data for natural-language analytics';</code></pre>
             </div>
 
-            <h3>6B: Create Cortex Agent</h3>
+            <h3>8B: Create Cortex Agent</h3>
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                 <pre><code>CREATE OR REPLACE AGENT CALLS_ANALYST_AGENT
-  COMMENT = 'Omilia Call Center Analyst — ask questions about call volumes, sentiment, quality scores, and escalation patterns'
+  COMMENT = 'Omilia Call Center Analyst — ask questions about call volumes, intents, annotation coverage, and queue performance'
   FROM SPECIFICATION
   $$
   instructions:
@@ -627,7 +684,7 @@ FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
     - tool_spec:
         type: "cortex_analyst_text_to_sql"
         name: "CallsAnalyst"
-        description: "Queries Omilia call center data including call volumes by queue, sentiment distribution, average handling quality scores, escalation rates, and issue category breakdowns."
+        description: "Queries Omilia call center data including call volumes by queue, intent distribution, annotation coverage, duration patterns, and channel breakdowns."
 
   tool_resources:
     CallsAnalyst:
@@ -642,19 +699,19 @@ FROM AUDIO_TRANSCRIPTIONS_RAW;</code></pre>
             <p>Open <strong>Snowflake CoWork</strong> (top-right corner of Snowsight) and select your <code>CALLS_ANALYST_AGENT</code>. Try asking:</p>
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>What are the top 3 issue categories by call volume, and what is the average quality score for each?</code></pre>
+                <pre><code>What are the top intent categories by call volume? Show a chart.</code></pre>
             </div>
 
             <div class="expected-output">The agent generates and executes SQL against your semantic view, returning a natural-language answer with charts.</div>
         </div>
     </div>
 
-    <!-- STEP 7 -->
+    <!-- BONUS: Dashboard -->
     <div class="step-section">
         <div class="step-header">
-            <div class="step-number">7</div>
-            <h2>Generate Your Dashboard with Cortex Code</h2>
-            <span class="step-time">40+ min</span>
+            <div class="step-number" style="background: linear-gradient(135deg, #ff6b35, #f7c948);">&#9733;</div>
+            <h2>Generate a Dashboard with Cortex Code</h2>
+            <span class="step-time">Bonus</span>
         </div>
         <div class="step-body">
             <p>The final step: use Cortex Code to generate a polished analytics dashboard on top of your data. Open Coco and paste this prompt (replace <code>&lt;MY_SCHEMA&gt;</code> with your schema name):</p>
@@ -763,15 +820,16 @@ Streamlit app in my Workspace to navigate through the results.</code></pre>
     <!-- Wrap-up -->
     <div class="wrap-up">
         <h2>What You Built Today</h2>
-        <p style="margin-bottom:16px; color: var(--sf-gray);">A complete data flywheel in Snowflake, aligned with Omilia's architecture goals:</p>
+        <p style="margin-bottom:16px; color: var(--sf-gray);">A complete ML-ready data pipeline in Snowflake, aligned with Omilia's architecture goals:</p>
         <ul>
             <li><strong>Snowflake as the governed hub</strong> — all data lives in one place with schema isolation</li>
-            <li><strong>Audio-first data as first-class input</strong> — MP3 files transcribed directly in Snowflake</li>
             <li><strong>Anonymization pipeline</strong> — PII removed before any analytics or training use</li>
-            <li><strong>Training-ready datasets</strong> — structured, enriched, and model-scored</li>
-            <li><strong>Write-back pattern</strong> — external model outputs flow back into Snowflake tables</li>
-            <li><strong>Semantic View & Agent</strong> — natural-language access to governed data</li>
-            <li><strong>AI-generated internal tools</strong> — dashboards built on top of the same governed data</li>
+            <li><strong>Annotation write-back</strong> — human labels (simulated with AI_CLASSIFY) flow back into Snowflake</li>
+            <li><strong>Immutable ML Datasets</strong> — versioned "recipes" for reproducible training</li>
+            <li><strong>Model Registry</strong> — trained model registered with full metadata</li>
+            <li><strong>Batch inference</strong> — predictions saved to prove end-to-end value</li>
+            <li><strong>ML Lineage</strong> — every model traceable back to its exact training data</li>
+            <li><strong>Cortex Agent</strong> — natural-language access to governed data</li>
         </ul>
     </div>
 

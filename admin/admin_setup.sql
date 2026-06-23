@@ -1,3 +1,19 @@
+-- -----------------------------------------------------------------------------
+-- 12. PUBLIC grants for Snowpark ML owner's-rights stored procedures
+-- -----------------------------------------------------------------------------
+-- Snowpark ML's internal training sprocs run with owner's rights (USER$<name>).
+-- These USER$ roles inherit from PUBLIC, so granting to PUBLIC ensures all
+-- participants' training sprocs can access the workshop database.
+-- This is safe because the database is ephemeral and destroyed after the workshop.
+
+GRANT USAGE ON DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE PUBLIC;
+GRANT USAGE ON ALL SCHEMAS IN DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE PUBLIC;
+GRANT USAGE ON FUTURE SCHEMAS IN DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE PUBLIC;
+GRANT SELECT ON ALL TABLES IN DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE PUBLIC;
+GRANT SELECT ON FUTURE TABLES IN DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE PUBLIC;
+GRANT USAGE ON ALL DATASETS IN DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE PUBLIC;
+GRANT USAGE ON FUTURE DATASETS IN DATABASE OMILIA_WORKSHOP_DAY2 TO ROLE PUBLIC;
+
 -- =============================================================================
 -- OMILIA WORKSHOP DAY 2 — ADMIN SETUP
 -- =============================================================================
