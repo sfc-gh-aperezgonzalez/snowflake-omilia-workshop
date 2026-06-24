@@ -483,14 +483,30 @@ GROUP BY LABEL_SOURCE;</code></pre>
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>CREATE DATASET IF NOT EXISTS CALLS_TRAINING_DATASET;
+                <pre><code># Switch to Python cell — the Python API captures table → dataset lineage
+from snowflake.snowpark.context import get_active_session
+from snowflake.ml import dataset
 
-ALTER DATASET CALLS_TRAINING_DATASET ADD VERSION 'v1'
-  FROM (SELECT * FROM CALLS_TRAINING_READY)
-  COMMENT = 'All annotated calls - initial training recipe';
+session = get_active_session()
 
--- Verify: list all versions
-SHOW VERSIONS IN DATASET CALLS_TRAINING_DATASET;</code></pre>
+# Read training-ready data as a Snowpark DataFrame
+source_df = session.table("CALLS_TRAINING_READY")
+
+# Create the dataset — this captures table → dataset lineage
+ds = dataset.create_from_dataframe(
+    session,
+    name="CALLS_TRAINING_DATASET",
+    version="v1",
+    input_dataframe=source_df,
+)
+
+print(f"Dataset: {ds.fully_qualified_name}")
+print(f"Version: {ds.selected_version.name}")</code></pre>
+            </div>
+
+            <div class="callout warning">
+                <strong>Why Python, not SQL?</strong>
+                The SQL command <code>ALTER DATASET ADD VERSION FROM (SELECT ...)</code> creates the dataset but does NOT record the table → dataset lineage link. Only the Python API <code>create_from_dataframe</code> captures this relationship in Horizon Catalog.
             </div>
 
             <div class="expected-output">Dataset <code>CALLS_TRAINING_DATASET</code> with version <code>v1</code> containing your annotated training data.</div>
