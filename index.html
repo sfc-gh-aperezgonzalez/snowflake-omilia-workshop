@@ -68,25 +68,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 4px;
             flex-wrap: nowrap;
             margin-top: 16px;
-            overflow-x: auto;
             padding: 4px 0;
         }
         .pipeline-step {
             background: white;
             border: 2px solid var(--sf-border);
             border-radius: 8px;
-            padding: 10px 12px;
-            font-size: 0.72rem;
+            padding: 8px 8px;
+            font-size: 0.65rem;
             font-weight: 600;
             text-align: center;
-            min-width: 80px;
+            min-width: 68px;
             white-space: nowrap;
         }
         .pipeline-step.active { border-color: var(--sf-blue); background: var(--sf-light-blue); }
-        .pipeline-arrow { color: var(--sf-gray); font-size: 1rem; flex-shrink: 0; }
+        .pipeline-arrow { color: var(--sf-gray); font-size: 0.85rem; flex-shrink: 0; }
 
         .step-section {
             margin: 48px 0;
@@ -257,15 +256,15 @@
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">RAW<br><small>Load</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">ANON<br><small>AI_REDACT + Tags</small></div>
+            <div class="pipeline-step">ANON<br><small>Redact+Tag</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">ANNOTATED<br><small>AI_CLASSIFY</small></div>
+            <div class="pipeline-step">ANNOTATE<br><small>Classify</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">DATASET<br><small>Immutable v1</small></div>
+            <div class="pipeline-step">DATASET<br><small>Immutable</small></div>
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step">MODEL<br><small>Registry</small></div>
             <span class="pipeline-arrow">&rarr;</span>
-            <div class="pipeline-step">INFERENCE<br><small>Predictions</small></div>
+            <div class="pipeline-step">PREDICT<br><small>Inference</small></div>
             <span class="pipeline-arrow">&rarr;</span>
             <div class="pipeline-step active">AGENT<br><small>CoWork</small></div>
         </div>
