@@ -582,22 +582,35 @@ print(f"Model registered: {mv.model_name} version {mv.version_name}")</code></pr
 
             <div class="code-block">
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                <pre><code>CREATE OR REPLACE TABLE CALLS_PREDICTIONS AS
-SELECT
-    CALL_ID, QUEUE, LANG, DURATION_SEC, CHANNEL, INTENT_LABEL, LABEL_SOURCE,
-    INTENT_CLASSIFIER!PREDICT(DURATION_SEC):OUTPUT_INTENT_LABEL::VARCHAR AS PREDICTED_INTENT_LABEL
-FROM CALLS_TRAINING_READY;
+                <pre><code># Switch to Python cell — MODEL!PREDICT requires SPCS, so we use mv.run()
+from snowflake.snowpark.context import get_active_session
+from snowflake.ml.registry import Registry
 
--- Compare predictions vs actual labels
-SELECT
-    CALL_ID, QUEUE, DURATION_SEC,
-    INTENT_LABEL AS ACTUAL_LABEL,
-    PREDICTED_INTENT_LABEL,
-    CASE WHEN INTENT_LABEL = PREDICTED_INTENT_LABEL THEN 'correct' ELSE 'mismatch' END AS MATCH,
-    LABEL_SOURCE
-FROM CALLS_PREDICTIONS
-WHERE LABEL_SOURCE = 'human'
-LIMIT 15;</code></pre>
+session = get_active_session()
+session.use_database(MY_DATABASE)
+session.use_schema(MY_SCHEMA)
+
+# Load the registered model
+reg = Registry(session=session, database_name=MY_DATABASE, schema_name=MY_SCHEMA)
+mv = reg.get_model("INTENT_CLASSIFIER").version("v1")
+
+# Run inference on all training-ready calls
+input_df = session.table("CALLS_TRAINING_READY").select(
+    "CALL_ID", "QUEUE", "LANG", "DURATION_SEC", "CHANNEL", "INTENT_LABEL", "LABEL_SOURCE"
+)
+predictions_df = mv.run(input_df, function_name="predict")
+
+# Save predictions to a table
+predictions_df.write.save_as_table("CALLS_PREDICTIONS", mode="overwrite")
+
+# Compare predictions vs actual for human-annotated rows
+results = session.sql("""
+    SELECT CALL_ID, QUEUE, DURATION_SEC, INTENT_LABEL AS ACTUAL,
+           OUTPUT_INTENT_LABEL AS PREDICTED,
+           CASE WHEN INTENT_LABEL = OUTPUT_INTENT_LABEL THEN 'correct' ELSE 'mismatch' END AS MATCH
+    FROM CALLS_PREDICTIONS WHERE LABEL_SOURCE = 'human' LIMIT 15
+""")
+results.show()</code></pre>
             </div>
 
             <div class="expected-output"><code>CALLS_PREDICTIONS</code> table with predicted intent labels. Compare actual vs predicted to see model accuracy.</div>
