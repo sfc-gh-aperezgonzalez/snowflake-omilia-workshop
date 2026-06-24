@@ -554,12 +554,13 @@ model = RandomForestClassifier(
 )
 model.fit(labeled_df)
 
-# Register in Model Registry
-reg = Registry(session=session)
+# Register in Model Registry (target_platforms needed in Notebooks)
+reg = Registry(session=session, database_name=MY_DATABASE, schema_name=MY_SCHEMA)
 mv = reg.log_model(
     model,
     model_name="INTENT_CLASSIFIER",
     version_name="v1",
+    target_platforms=["WAREHOUSE"],
     sample_input_data=labeled_df.select("DURATION_SEC").limit(10),
     comment="Intent classifier trained on human-annotated call data"
 )
